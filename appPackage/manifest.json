@@ -2,7 +2,7 @@
     "$schema": "https://developer.microsoft.com/en-us/json-schemas/teams/v1.16/MicrosoftTeams.schema.json",
     "manifestVersion": "1.16",
     "version": "1.0.0",
-    "id": "2f51c955-a012-4c29-80a3-98d929fa1e25",
+    "id": "de10a9b3-43ef-49fc-ade2-35be731535f3",
     "packageName": "com.transcriptbot.teamsapp",
     "developer": {
         "name": "Subiksha / Standup Bot",
@@ -25,7 +25,7 @@
     "accentColor": "#4B53BC",
     "bots": [
         {
-            "botId": "2f51c955-a012-4c29-80a3-98d929fa1e25",
+            "botId": "de10a9b3-43ef-49fc-ade2-35be731535f3",
             "scopes": [
                 "personal",
                 "team",
