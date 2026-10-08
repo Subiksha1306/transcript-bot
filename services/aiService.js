@@ -55,14 +55,32 @@ Return ONLY a valid JSON object matching the following structure:
 
     try {
         const truncatedPrompt = prompt.length > 15000 ? prompt.substring(0, 15000) + "\n...[Transcript truncated to fit token limits]" : prompt;
-        const response = await groq.chat.completions.create({
-            model: "qwen/qwen3.8-27b",
-            messages: [
-                { role: "system", content: "You are a helpful assistant that strictly outputs JSON. Do not output any conversational text or markdown blocks, only the JSON object." },
-                { role: "user", content: truncatedPrompt }
-            ],
-            temperature: 0.1,
-        });
+        let response;
+        try {
+            response = await groq.chat.completions.create({
+                model: "qwen/qwen3.8-27b",
+                max_tokens: 950,
+                messages: [
+                    { role: "system", content: "You are a helpful assistant that strictly outputs JSON. Do not output any conversational text or markdown blocks, only the JSON object." },
+                    { role: "user", content: truncatedPrompt }
+                ],
+                temperature: 0.1,
+            });
+        } catch (groqErr) {
+            if (groqErr.status === 429 || groqErr.message?.includes('429') || groqErr.message?.includes('limit')) {
+                console.log("[AI Service] Qwen rate limited. Falling back to openai/gpt-oss-120b...");
+                response = await groq.chat.completions.create({
+                    model: "openai/gpt-oss-120b",
+                    messages: [
+                        { role: "system", content: "You are a helpful assistant that strictly outputs JSON. Do not output any conversational text or markdown blocks, only the JSON object." },
+                        { role: "user", content: truncatedPrompt }
+                    ],
+                    temperature: 0.1,
+                });
+            } else {
+                throw groqErr;
+            }
+        }
 
         let jsonContent = response.choices[0].message.content;
         
