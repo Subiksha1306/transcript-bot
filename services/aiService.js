@@ -12,40 +12,28 @@ const groq = new Groq({
  */
 async function processTranscript(transcript) {
     const prompt = `
-You are an elite Standup Meeting Assistant. Your task is to process a meeting transcript and convert it into structured work updates.
+You are an elite Standup Meeting Assistant. Your task is to process a meeting transcript and extract structured task updates for the whole team.
 
 ### Transcript
 ${transcript}
 
-### What counts as a task
-1. Work a person says they will do today or next.
-2. Work someone assigns to another person (assign it to the person who has to do it).
-3. Commitments a person makes in reply.
-4. Follow-ups and deliverables with deadlines.
-5. General status updates (e.g. "I deployed the docker app"). Treat these as completed tasks.
-
-### Strict Rules
-1. You must identify EVERY SINGLE SPEAKER who appears in the transcript. DO NOT SKIP ANYONE.
-2. Use each person's full name exactly as it appears. 
-3. Write each task as a short, specific, action-first sentence.
-4. Extract the deadline for the task if mentioned. If no deadline is stated, explicitly write "Not specified".
-5. If a person spoke but has no tasks or updates, still include them but leave their tasks array empty.
-
-### EXTREME THOROUGHNESS REQUIRED
-- Read the transcript line-by-line multiple times.
-- DO NOT SKIP ANY TASKS. Even minor follow-ups, brief mentions, or implied tasks MUST be captured. 
-- EVERY SINGLE PERSON in the meeting has tasks assigned to them. You MUST find them and assign them correctly.
-- It is better to extract too many tasks than to miss a single one. Be exhaustive!
+### Instructions
+1. First, read the entire transcript and identify EVERY SINGLE PERSON who attended, spoke, or was assigned a task. You must not skip anyone.
+2. For EVERY single person, extract their 1 to 4 key action items and deliverables. 
+3. If someone assigns a task to another person, assign it to the person who has to DO the work, not the person who asked.
+4. Extract explicit deadlines (e.g., "today afternoon", "by tomorrow morning", "by 4:00 PM today"). If none was mentioned, write "Not specified".
+5. Be concise: combine related minor sub-steps into clear, action-first sentences.
+6. You MUST include an entry in the "participants" array for EVERY person who attended the meeting.
 
 Return ONLY a valid JSON object matching the following structure:
 {
   "participants": [
     {
-      "name": "Speaker Name",
+      "name": "Full Name",
       "tasks": [
         {
-          "description": "Task description here",
-          "deadline": "Today"
+          "description": "Specific action item starting with an action verb",
+          "deadline": "Deadline or Not specified"
         }
       ]
     }
