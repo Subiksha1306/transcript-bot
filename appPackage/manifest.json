@@ -1,0 +1,46 @@
+{
+    "$schema": "https://developer.microsoft.com/en-us/json-schemas/teams/v1.16/MicrosoftTeams.schema.json",
+    "manifestVersion": "1.16",
+    "version": "1.0.0",
+    "id": "2f51c955-a012-4c29-80a3-98d929fa1e25",
+    "packageName": "com.transcriptbot.teamsapp",
+    "developer": {
+        "name": "Subiksha / Standup Bot",
+        "websiteUrl": "https://github.com/Subiksha1306/transcript-bot",
+        "privacyUrl": "https://github.com/Subiksha1306/transcript-bot",
+        "termsOfUseUrl": "https://github.com/Subiksha1306/transcript-bot"
+    },
+    "icons": {
+        "color": "color.png",
+        "outline": "outline.png"
+    },
+    "name": {
+        "short": "Transcript Bot",
+        "full": "AI Standup Transcript Task Extractor"
+    },
+    "description": {
+        "short": "Extracts assigned tasks from meeting transcripts",
+        "full": "Send or paste any Microsoft Teams standup meeting transcript to automatically extract assigned tasks, deadlines, and status updates."
+    },
+    "accentColor": "#4B53BC",
+    "bots": [
+        {
+            "botId": "2f51c955-a012-4c29-80a3-98d929fa1e25",
+            "scopes": [
+                "personal",
+                "team",
+                "groupchat"
+            ],
+            "supportsFiles": true,
+            "isNotificationOnly": false
+        }
+    ],
+    "permissions": [
+        "identity",
+        "messageTeamMembers"
+    ],
+    "validDomains": [
+        "*.ngrok-free.app",
+        "*.onrender.com"
+    ]
+}
