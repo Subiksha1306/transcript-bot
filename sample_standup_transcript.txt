@@ -1,0 +1,79 @@
+Engineering_Team_Daily_Standup-20261008_093000-Meeting Recording
+October 8, 2026, 9:30AM
+24m 15s
+
+Subiksha Mohanasundaram started transcription
+
+Arun   0:05
+Good morning everyone. Let's do a quick round of updates on current deliverables and blockers. Subiksha, can you start with the transcript pipeline and dashboard?
+
+Subiksha Mohanasundaram   0:22
+Good morning Arun. Yesterday I resolved the Power Automate payload buffering issue and migrated the backend service to Render so it runs continuously in the cloud. Today I will test the Teams Bot sideload package in our test channel and verify file upload handling [by today afternoon]. 
+
+Arun   0:45
+Great. Did you check the export functionality for the Manager Dashboard in ImpactX?
+
+Subiksha Mohanasundaram   0:55
+Yes, the export button is live. But I still need to add the AI analytics tab we discussed. I'll sync with Ramesh on the metrics and prepare the PR [by tomorrow morning].
+
+Arun   1:12
+Sounds good. Make sure to document the endpoint URLs. Haran, what is the status of the container deployment and the health check heartbeat?
+
+Haran Sinka   1:28
+Morning sir. I finished deploying the dynamic web service on Render with Docker yesterday. Today I am implementing the heartbeat monitoring mechanism to check site uptime for the PSR bot and ImpactX portal [by end of day]. If either goes down, it will trigger an automated alert.
+
+Arun   1:50
+Perfect. Did you also loop me into the Ramesh summary notification?
+
+Haran Sinka   2:02
+Not yet, sir. I will update the notification logic in the Teams bot to include you on the daily EOD summary dispatch [today].
+
+Arun   2:16
+Okay, please test that with dummy data first. Surya, over to you. How is candidate authentication progressing on the recruitment portal?
+
+Surya Prabhakar Ganapathy Kannan   2:32
+Hi Arun. Yesterday I reviewed the Google authentication flow. As requested, I am replacing Google login with email plus temporary random password generation. Today I will build the password generation utility and set up the 30-day credential expiration rule [by today evening].
+
+Arun   2:58
+Are we also expiring rejected candidate logins immediately?
+
+Surya Prabhakar Ganapathy Kannan   3:08
+Yes, if the profile status changes to rejected, their login access will automatically deactivate. I will also fix the landing page dashboard layout to display the recruitment pipeline counts clearly [by tomorrow afternoon].
+
+Arun   3:25
+Awesome. Make sure the candidate document re-upload portal works smoothly without requiring HR intervention. Glory, how are things looking with the Axle reconciliation agent?
+
+Glory Manivel   3:45
+Hi Arun. Yesterday I got the initial requirement walkthrough for PTO balance monitoring. Today I have scheduled a one-hour screen-share session with Bhuvaneshwaran to build the Copilot agent in the Axle tenant [at 2:00 PM today]. We will connect the three data sources—PSR, APCMS, and Deltek.
+
+Arun   4:10
+Good. Keep in mind the project code mapping logic. For some employees, five hours in Deltek maps across two separate project codes in PSR. Make sure the reconciliation agent flags only genuine mismatches, not mapping differences.
+
+Glory Manivel   4:28
+Understood. I will write validation rules for the project mapping table and send the reconciliation test sheet to Jeeva for review [by tomorrow].
+
+Arun   4:41
+Thanks Glory. Sreehari, any updates from your side?
+
+Sreehari Palani   4:52
+Hi Arun. I finished reviewing the candidate scoring PR this morning. Today I will assist Surya with database indexing on the recruitment portal [today afternoon] and run regression tests on the scoring API [by tomorrow morning].
+
+Arun   5:12
+Thanks Sreehari. As for my tasks, I will review Subiksha's documentation, approve Haran's Render deployment configuration, and follow up with the infrastructure team regarding Axle tenant permissions [by 4:00 PM today]. Let's wrap up and get to it. Thanks everyone.
+
+Subiksha Mohanasundaram   5:32
+Thank you Arun.
+
+Haran Sinka   5:34
+Thank you, sir.
+
+Surya Prabhakar Ganapathy Kannan   5:36
+Thanks.
+
+Glory Manivel   5:37
+Thank you everyone.
+
+Sreehari Palani   5:38
+Thanks.
+
+Subiksha Mohanasundaram stopped transcription
