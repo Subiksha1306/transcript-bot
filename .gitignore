@@ -1,0 +1,11 @@
+node_modules/
+**/node_modules/
+.env
+.env.*
+!.env.example
+*.db
+__pycache__/
+**/__pycache__/
+*.png
+.DS_Store
+Enter/
