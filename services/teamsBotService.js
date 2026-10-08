@@ -5,7 +5,7 @@ const aiService = require('./aiService');
 const botFrameworkAuthentication = new ConfigurationBotFrameworkAuthentication({
     MicrosoftAppId: process.env.MicrosoftAppId,
     MicrosoftAppPassword: process.env.MicrosoftAppPassword,
-    MicrosoftAppType: process.env.MicrosoftAppType || 'MultiTenant',
+    MicrosoftAppType: process.env.MicrosoftAppType || 'SingleTenant',
     MicrosoftAppTenantId: process.env.MicrosoftAppTenantId
 });
 
@@ -14,7 +14,7 @@ const adapter = new CloudAdapter(botFrameworkAuthentication);
 // Error handler for adapter
 adapter.onTurnError = async (context, error) => {
     console.error(`\n[Teams Bot] Unhandled turn error:`, error);
-    await context.sendActivity('⚠️ An error occurred while processing your request. Please try again.');
+    await context.sendActivity(`⚠️ Error: ${error.message || 'An error occurred while processing your request.'}`);
 };
 
 class StandupTeamsBot extends ActivityHandler {
@@ -24,31 +24,44 @@ class StandupTeamsBot extends ActivityHandler {
         this.onMessage(async (context, next) => {
             let rawText = (context.activity.text || '').trim();
 
-            // Check if user uploaded a file attachment (.txt)
+            // Check if user uploaded a real file attachment (.txt)
             if (context.activity.attachments && context.activity.attachments.length > 0) {
                 const attachment = context.activity.attachments[0];
-                console.log(`[Teams Bot] Received attachment: ${attachment.name || attachment.contentType}`);
                 
-                try {
-                    let downloadUrl = attachment.contentUrl;
-                    if (attachment.content && attachment.content.downloadUrl) {
-                        downloadUrl = attachment.content.downloadUrl;
-                    }
-
-                    if (downloadUrl) {
-                        await context.sendActivity(`📥 Downloading transcript: ${attachment.name || 'file'}...`);
-                        const response = await axios.get(downloadUrl, { responseType: 'text' });
-                        if (response.data) {
-                            rawText = response.data;
+                // Only download if it's a real file (not Teams internal text/html)
+                if (attachment.contentType !== 'text/html' && attachment.name) {
+                    console.log(`[Teams Bot] Received file attachment: ${attachment.name}`);
+                    try {
+                        let downloadUrl = attachment.contentUrl;
+                        if (attachment.content && attachment.content.downloadUrl) {
+                            downloadUrl = attachment.content.downloadUrl;
                         }
+
+                        if (downloadUrl) {
+                            await context.sendActivity(`📥 Downloading transcript: ${attachment.name}...`);
+                            const response = await axios.get(downloadUrl, { responseType: 'text' });
+                            if (response.data) {
+                                rawText = response.data;
+                            }
+                        }
+                    } catch (err) {
+                        console.error('[Teams Bot] Error downloading file:', err.message);
                     }
-                } catch (err) {
-                    console.error('[Teams Bot] Error downloading attachment:', err.message);
                 }
             }
 
-            // Clean any bot @mention tags from Teams channels (e.g., <at>StandupBot</at>)
-            rawText = rawText.replace(/<at>.*?<\/at>/gi, '').trim();
+            // Clean Teams HTML formatting and @mentions
+            rawText = rawText
+                .replace(/<at>.*?<\/at>/gi, '')
+                .replace(/<br\s*\/?>/gi, '\n')
+                .replace(/<\/p>/gi, '\n')
+                .replace(/<\/div>/gi, '\n')
+                .replace(/<[^>]+>/g, '')
+                .replace(/&nbsp;/gi, ' ')
+                .replace(/&amp;/gi, '&')
+                .replace(/&lt;/gi, '<')
+                .replace(/&gt;/gi, '>')
+                .trim();
 
             // Quick greetings / help
             if (!rawText || rawText.toLowerCase() === 'hi' || rawText.toLowerCase() === 'hello' || rawText.toLowerCase() === 'help') {
@@ -77,7 +90,7 @@ class StandupTeamsBot extends ActivityHandler {
                 await context.sendActivity(summaryMarkdown);
             } catch (err) {
                 console.error('[Teams Bot] Processing error:', err);
-                await context.sendActivity("❌ Failed to process the transcript. Please ensure the transcript format is valid.");
+                await context.sendActivity(`❌ Failed to process the transcript: ${err.message || 'Error occurred during AI processing'}`);
             }
 
             await next();
