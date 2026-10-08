@@ -3,7 +3,6 @@ const dotenv = require('dotenv');
 dotenv.config(); // Must be called before services!
 
 const aiService = require('./services/aiService');
-const dbService = require('./services/dbService');
 const teamsBot = require('./services/teamsBotService');
 
 const app = express();
