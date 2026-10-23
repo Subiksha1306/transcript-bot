@@ -69,7 +69,7 @@ app.post('/api/analyze', async (req, res) => {
         const standupData = await aiService.processTranscript(transcript);
         const summary = aiService.formatMarkdownSummary(standupData);
 
-        res.json({ summary, data: standupData });
+        res.json({ people: standupData.people, summary, data: standupData });
     } catch (err) {
         console.error('[Web UI] Error:', err);
         res.status(500).json({ error: err.message || 'Failed to process transcript.' });

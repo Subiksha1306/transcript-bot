@@ -6,7 +6,7 @@ const groq = new Groq({
 });
 
 /**
- * Process the transcript and generate the standup summary using Groq
+ * Process the transcript and generate structured updates using Groq
  * @param {string} transcript 
  * @returns {Promise<Object>} The structured standup update
  */
@@ -19,21 +19,25 @@ ${transcript}
 
 ### Instructions
 1. First, read the entire transcript and identify EVERY SINGLE PERSON who attended, spoke, or was assigned a task. You must not skip anyone.
-2. For EVERY single person, extract their 1 to 4 key action items and deliverables. 
+2. For EVERY single person, extract their key action items and deliverables. 
 3. If someone assigns a task to another person, assign it to the person who has to DO the work, not the person who asked.
-4. Extract explicit deadlines (e.g., "today afternoon", "by tomorrow morning", "by 4:00 PM today"). If none was mentioned, write "Not specified".
-5. Be concise: combine related minor sub-steps into clear, action-first sentences.
-6. You MUST include an entry in the "participants" array for EVERY person who attended the meeting.
+4. Extract explicit deadlines (e.g. "Today, 4:00 PM", "Tomorrow morning", "End of day", "Wednesday afternoon"). If no deadline is stated in the transcript, set deadline to null.
+5. Be concise: combine related minor sub-steps into clear, action-first sentences starting with an active verb.
+6. You MUST include an entry in the "people" array for EVERY person who participated in the meeting. Keep the order of people the same as they appear in the transcript.
 
 Return ONLY a valid JSON object matching the following structure:
 {
-  "participants": [
+  "people": [
     {
-      "name": "Full Name",
+      "name": "Arun",
       "tasks": [
         {
-          "description": "Specific action item starting with an action verb",
-          "deadline": "Deadline or Not specified"
+          "task": "Review Subiksha's documentation",
+          "deadline": null
+        },
+        {
+          "task": "Follow up with infrastructure team on Axle tenant permissions",
+          "deadline": "Today, 4:00 PM"
         }
       ]
     }
@@ -89,7 +93,8 @@ Return ONLY a valid JSON object matching the following structure:
             jsonContent = jsonContent.substring(startIndex, endIndex + 1);
         }
         
-        return JSON.parse(jsonContent);
+        const parsed = JSON.parse(jsonContent);
+        return normalizePeople(parsed);
     } catch (error) {
         console.error("Error processing transcript with AI:", error);
         throw error;
@@ -97,87 +102,95 @@ Return ONLY a valid JSON object matching the following structure:
 }
 
 /**
- * Formats the JSON output into a nice Markdown summary for Teams
+ * Normalizes any variations in JSON schema into a reliable { people: [...] } format
+ * @param {Object} data 
+ * @returns {Object} { people: [{ name, tasks: [{ task, deadline }] }] }
+ */
+function normalizePeople(data) {
+    if (!data || typeof data !== 'object') {
+        return { people: [] };
+    }
+
+    const rawList = data.people || data.participants || [];
+    const people = [];
+
+    if (Array.isArray(rawList)) {
+        for (const item of rawList) {
+            if (typeof item === 'string') {
+                people.push({ name: item, tasks: [] });
+            } else if (typeof item === 'object' && item !== null) {
+                const name = item.name || item.speaker || "Unknown Person";
+                const tasks = [];
+                const rawTasks = item.tasks || [];
+                if (Array.isArray(rawTasks)) {
+                    for (const t of rawTasks) {
+                        const taskText = t.task || t.description || t.title || "";
+                        let dl = t.deadline || t.due_date || null;
+                        if (typeof dl === 'string') {
+                            const trimmed = dl.trim();
+                            if (trimmed === "" || trimmed.toLowerCase() === "not specified" || trimmed.toLowerCase() === "null" || trimmed.toLowerCase() === "none") {
+                                dl = null;
+                            }
+                        }
+                        if (taskText) {
+                            tasks.push({ task: taskText, deadline: dl });
+                        }
+                    }
+                }
+                people.push({ name, tasks });
+            }
+        }
+    }
+
+    // Secondary fallback for schemas with action_items
+    if (Array.isArray(data.action_items)) {
+        for (const a of data.action_items) {
+            const owner = a.owner || a.assignee;
+            if (owner) {
+                let p = people.find(x => x.name.toLowerCase() === owner.toLowerCase());
+                if (!p) {
+                    p = { name: owner, tasks: [] };
+                    people.push(p);
+                }
+                const taskText = a.task || a.description;
+                let dl = a.due_date || a.deadline || null;
+                if (typeof dl === 'string' && (dl.toLowerCase() === 'not specified' || dl.toLowerCase() === 'null')) dl = null;
+                if (taskText && !p.tasks.some(t => t.task === taskText)) {
+                    p.tasks.push({ task: taskText, deadline: dl });
+                }
+            }
+        }
+    }
+
+    return { people };
+}
+
+/**
+ * Formats structured people data into a clean plain-text summary for Teams
  * @param {Object} standupData 
  */
 function formatMarkdownSummary(standupData) {
-    let markdown = `## **Your Assigned Tasks**\n\n`;
+    const normalized = normalizePeople(standupData);
+    let output = "";
 
-    // Normalization logic: Build a map of Person -> Tasks
-    const personTasks = {};
-
-    // 1. If it followed our schema:
-    if (standupData.participants && typeof standupData.participants[0] === 'object') {
-        for (const p of standupData.participants) {
-            const name = p.name || p.speaker || "Unknown Person";
-            personTasks[name] = personTasks[name] || [];
-            if (p.tasks) {
-                p.tasks.forEach(t => {
-                    const desc = t.description || t.task || t.title || "Task details not specified";
-                    const deadline = t.deadline || t.due_date || "Not specified";
-                    personTasks[name].push({ desc, deadline });
-                });
-            }
-        }
-    } 
-    // 2. If it used Qwen's creative schema (participants is array of strings, action_items/updates hold tasks):
-    else {
-        // Init everyone
-        if (Array.isArray(standupData.participants)) {
-            standupData.participants.forEach(name => {
-                if (typeof name === 'string') personTasks[name] = [];
-            });
-        }
-        
-        // Extract from "updates"
-        if (Array.isArray(standupData.updates)) {
-            standupData.updates.forEach(u => {
-                const name = u.name || u.person || "Unknown Person";
-                personTasks[name] = personTasks[name] || [];
-                
-                if (Array.isArray(u.in_progress)) {
-                    u.in_progress.forEach(t => personTasks[name].push({ desc: t, deadline: "Not specified" }));
-                }
-                if (Array.isArray(u.completed)) {
-                    u.completed.forEach(t => personTasks[name].push({ desc: `[Completed] ${t}`, deadline: "Completed" }));
-                }
-            });
-        }
-
-        // Extract from "action_items"
-        if (Array.isArray(standupData.action_items)) {
-            standupData.action_items.forEach(a => {
-                const name = a.owner || a.assignee || "Unknown Person";
-                personTasks[name] = personTasks[name] || [];
-                const desc = a.task || a.description || "Action Item";
-                const deadline = a.due_date || a.deadline || "Not specified";
-                personTasks[name].push({ desc, deadline });
-            });
-        }
-    }
-
-    // Generate Output
-    for (const [name, tasks] of Object.entries(personTasks)) {
-        markdown += `**Person:** ${name}\n`;
-        markdown += `    **Tasks:**\n`;
-
-        if (tasks.length === 0) {
-            markdown += `    1. No assigned tasks or updates.\n\n`;
+    for (const p of normalized.people) {
+        output += `${p.name}\n`;
+        if (p.tasks.length === 0) {
+            output += ` 1. No assigned tasks or updates.\n\n`;
         } else {
-            tasks.forEach((task, index) => {
-                markdown += `    ${index + 1}. ${task.desc} (Deadline: ${task.deadline})\n`;
+            p.tasks.forEach((task, index) => {
+                const deadlineText = task.deadline ? `(${task.deadline})` : `(No deadline)`;
+                output += ` ${index + 1}. ${task.task} ${deadlineText}\n`;
             });
-            markdown += `\n`;
+            output += `\n`;
         }
     }
 
-    markdown += `---\n\n`;
-    markdown += `*Generated automatically by the AI Meeting Task Bot.*`;
-
-    return markdown;
+    return output.trim();
 }
 
 module.exports = {
     processTranscript,
+    normalizePeople,
     formatMarkdownSummary
 };

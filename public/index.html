@@ -3,316 +3,704 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>AI Standup Task Extractor</title>
+  <title>Standup Task Extractor</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <!-- Mammoth.js for client-side .docx parsing -->
+  <!-- Client-side Word (.docx) parser -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
     body {
-      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-      background: #0f172a;
-      color: #e2e8f0;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background-color: #F4F6FA;
+      color: #111827;
       min-height: 100vh;
       display: flex;
       flex-direction: column;
+      -webkit-font-smoothing: antialiased;
     }
-    header {
-      background: linear-gradient(135deg, #1e293b, #0f172a);
-      border-bottom: 1px solid #334155;
-      padding: 1.15rem 2rem;
+
+    /* Top Bar (68px, white, bottom border) */
+    .topbar {
+      height: 68px;
+      background: #FFFFFF;
+      border-bottom: 1px solid #E5E7EB;
+      display: flex;
+      align-items: center;
+      position: sticky;
+      top: 0;
+      z-index: 50;
+    }
+
+    .topbar-container {
+      max-width: 1280px;
+      width: 100%;
+      margin: 0 auto;
+      padding: 0 32px;
       display: flex;
       align-items: center;
       justify-content: space-between;
     }
+
     .brand {
       display: flex;
       align-items: center;
-      gap: 0.75rem;
+      gap: 12px;
     }
+
     .brand-icon {
       width: 38px;
       height: 38px;
-      background: linear-gradient(135deg, #6366f1, #8b5cf6);
+      background: #4F46E5;
       border-radius: 10px;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 1.25rem;
-      box-shadow: 0 4px 12px rgba(99, 102, 241, 0.35);
+      flex-shrink: 0;
     }
-    .brand h1 {
-      font-size: 1.15rem;
+
+    .brand-icon svg {
+      width: 20px;
+      height: 20px;
+      fill: #FFFFFF;
+    }
+
+    .brand-text h1 {
+      font-size: 17px;
       font-weight: 700;
-      color: #f8fafc;
-      letter-spacing: -0.01em;
+      color: #111827;
+      line-height: 1.25;
     }
-    .brand p {
-      font-size: 0.75rem;
-      color: #94a3b8;
+
+    .brand-text p {
+      font-size: 13px;
+      color: #4B5563;
+      margin-top: 1px;
     }
-    .badges {
-      display: flex;
-      gap: 0.5rem;
-    }
-    .badge {
-      background: rgba(99, 102, 241, 0.15);
-      color: #a5b4fc;
-      border: 1px solid rgba(99, 102, 241, 0.3);
-      padding: 0.25rem 0.6rem;
-      border-radius: 20px;
-      font-size: 0.75rem;
+
+    .btn-outlined {
+      background: #FFFFFF;
+      color: #111827;
+      border: 1px solid #E5E7EB;
+      padding: 8px 18px;
+      border-radius: 8px;
+      font-size: 13px;
       font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.15s ease-in-out;
+      font-family: inherit;
     }
+
+    .btn-outlined:hover:not(:disabled) {
+      background: #F9FAFB;
+      border-color: #D1D5DB;
+    }
+
+    .btn-outlined:focus-visible {
+      outline: 2px solid #4F46E5;
+      outline-offset: 2px;
+    }
+
+    .btn-outlined:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    /* Main Container */
     main {
       flex: 1;
-      max-width: 1300px;
+      max-width: 1280px;
       width: 100%;
       margin: 0 auto;
-      padding: 2rem 1.5rem;
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 1.75rem;
+      padding: 24px 32px 48px;
+      display: flex;
+      gap: 24px;
     }
+
     @media (max-width: 900px) {
-      main { grid-template-columns: 1fr; }
+      main {
+        flex-direction: column;
+        padding: 16px;
+      }
     }
+
+    /* Left Column (360px fixed) */
+    .left-col {
+      flex: 0 0 360px;
+      width: 360px;
+    }
+
+    @media (max-width: 900px) {
+      .left-col {
+        flex: 1 1 auto;
+        width: 100%;
+      }
+    }
+
+    /* Card styling */
     .card {
-      background: #1e293b;
-      border: 1px solid #334155;
+      background: #FFFFFF;
+      border: 1px solid #E5E7EB;
       border-radius: 14px;
-      padding: 1.5rem;
+    }
+
+    .input-card {
+      padding: 22px 24px;
       display: flex;
       flex-direction: column;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.25);
     }
-    .card-title {
-      font-size: 1rem;
-      font-weight: 600;
-      color: #f1f5f9;
-      margin-bottom: 1rem;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
+
+    .input-card h2 {
+      font-size: 16px;
+      font-weight: 700;
+      color: #111827;
+      margin-bottom: 16px;
     }
-    .supported-formats {
-      display: flex;
-      gap: 0.4rem;
-    }
-    .fmt-pill {
-      background: #334155;
-      color: #cbd5e1;
-      font-size: 0.7rem;
-      font-weight: 600;
-      padding: 0.15rem 0.45rem;
-      border-radius: 4px;
-      text-transform: uppercase;
-    }
+
+    /* Dropzone */
     .dropzone {
-      border: 2px dashed #475569;
+      border: 1.5px dashed #C7D2FE;
+      background: #F8FAFC;
       border-radius: 10px;
-      padding: 1.25rem 1rem;
+      padding: 20px 16px;
       text-align: center;
-      background: #0f172a;
       cursor: pointer;
-      transition: all 0.2s;
-      margin-bottom: 1rem;
+      transition: all 0.15s ease-in-out;
+      margin-bottom: 14px;
     }
+
     .dropzone:hover, .dropzone.dragover {
-      border-color: #6366f1;
-      background: rgba(99, 102, 241, 0.05);
+      border-color: #4F46E5;
+      background: #EEF2FF;
     }
-    .dropzone p {
-      font-size: 0.85rem;
-      color: #94a3b8;
-      margin-top: 0.25rem;
+
+    .dropzone:focus-visible {
+      outline: 2px solid #4F46E5;
+      outline-offset: 2px;
     }
-    .dropzone .icon {
-      font-size: 1.75rem;
+
+    .dropzone-title {
+      font-size: 13px;
+      color: #374151;
+      font-weight: 500;
     }
-    .file-status {
+
+    .dropzone-title span {
+      color: #4F46E5;
+      font-weight: 700;
+      text-decoration: underline;
+    }
+
+    .dropzone-formats {
+      font-size: 12px;
+      color: #6B7280;
+      margin-top: 4px;
+    }
+
+    /* Green file banner */
+    .file-loaded-banner {
       display: none;
-      background: rgba(34, 197, 94, 0.15);
-      border: 1px solid rgba(34, 197, 94, 0.3);
-      color: #86efac;
-      padding: 0.5rem 0.75rem;
+      background: #F0FDF4;
+      border: 1px solid #BBF7D0;
+      color: #166534;
       border-radius: 8px;
-      font-size: 0.8rem;
-      margin-bottom: 0.75rem;
+      padding: 10px 14px;
+      font-size: 13px;
+      font-weight: 500;
       align-items: center;
       justify-content: space-between;
+      margin-bottom: 14px;
+      gap: 10px;
     }
+
+    .file-loaded-text {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      flex: 1;
+    }
+
+    .file-clear-btn {
+      background: none;
+      border: none;
+      color: #166534;
+      cursor: pointer;
+      font-size: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2px 4px;
+      border-radius: 4px;
+    }
+
+    .file-clear-btn:hover {
+      background: rgba(22, 101, 52, 0.1);
+    }
+
+    .file-clear-btn:focus-visible {
+      outline: 2px solid #166534;
+    }
+
+    /* Textarea */
     textarea {
       width: 100%;
-      flex: 1;
-      min-height: 250px;
-      background: #0f172a;
-      border: 1px solid #334155;
+      height: 320px;
+      background: #F9FAFB;
+      border: 1px solid #E5E7EB;
       border-radius: 10px;
-      color: #e2e8f0;
+      padding: 14px;
       font-family: inherit;
-      font-size: 0.875rem;
-      padding: 0.85rem;
+      font-size: 13px;
+      line-height: 1.6;
+      color: #1F2937;
       resize: vertical;
-      line-height: 1.55;
+      transition: border-color 0.15s;
     }
+
     textarea:focus {
       outline: none;
-      border-color: #6366f1;
+      border-color: #4F46E5;
+      background: #FFFFFF;
     }
-    .btn {
-      background: linear-gradient(135deg, #6366f1, #8b5cf6);
-      color: white;
+
+    /* Primary Button */
+    .btn-primary {
+      width: 100%;
+      height: 46px;
+      background: #4F46E5;
+      color: #FFFFFF;
       border: none;
-      padding: 0.85rem 1.25rem;
       border-radius: 10px;
-      font-weight: 600;
-      font-size: 0.95rem;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 0.5rem;
-      margin-top: 1rem;
-      transition: opacity 0.2s;
-      box-shadow: 0 4px 14px rgba(99, 102, 241, 0.35);
-    }
-    .btn:hover { opacity: 0.92; }
-    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
-    .output-area {
-      flex: 1;
-      background: #0f172a;
-      border: 1px solid #334155;
-      border-radius: 10px;
-      padding: 1.25rem;
-      font-size: 0.875rem;
-      line-height: 1.65;
-      overflow-y: auto;
-      max-height: 540px;
-      white-space: pre-wrap;
-    }
-    .output-placeholder {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      height: 100%;
-      color: #64748b;
-      text-align: center;
-      padding: 2rem;
-    }
-    .copy-btn {
-      background: #334155;
-      color: #f1f5f9;
-      border: none;
-      padding: 0.4rem 0.85rem;
-      border-radius: 6px;
-      font-size: 0.8rem;
+      font-size: 15px;
       font-weight: 600;
       cursor: pointer;
       display: flex;
       align-items: center;
-      gap: 0.4rem;
-      transition: background 0.2s;
+      justify-content: center;
+      gap: 10px;
+      margin-top: 16px;
+      transition: background-color 0.15s ease-in-out;
+      font-family: inherit;
     }
-    .copy-btn:hover { background: #475569; }
-    .spinner {
+
+    .btn-primary:hover:not(:disabled) {
+      background: #4338CA;
+    }
+
+    .btn-primary:focus-visible {
+      outline: 2px solid #4F46E5;
+      outline-offset: 2px;
+    }
+
+    .btn-primary:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .btn-spinner {
       width: 18px;
       height: 18px;
-      border: 2px solid rgba(255,255,255,0.3);
+      border: 2px solid rgba(255, 255, 255, 0.35);
+      border-top-color: #FFFFFF;
       border-radius: 50%;
-      border-top-color: white;
       animation: spin 0.8s linear infinite;
       display: none;
     }
-    @keyframes spin { to { transform: rotate(360deg); } }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* Right Column (flexible) */
+    .right-col {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Stats Row (3 small cards) */
+    .stats-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+
+    @media (max-width: 600px) {
+      .stats-row {
+        grid-template-columns: 1fr;
+        gap: 10px;
+      }
+    }
+
+    .stat-card {
+      background: #FFFFFF;
+      border: 1px solid #E5E7EB;
+      border-radius: 12px;
+      padding: 16px 20px;
+    }
+
+    .stat-number {
+      font-size: 28px;
+      font-weight: 700;
+      color: #111827;
+      line-height: 1;
+    }
+
+    .stat-label {
+      font-size: 13px;
+      font-weight: 500;
+      color: #4B5563;
+      margin-top: 8px;
+    }
+
+    /* Person Cards Container */
+    .person-cards-list {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    /* Individual Person Card */
+    .person-card {
+      background: #FFFFFF;
+      border: 1px solid #E5E7EB;
+      border-radius: 14px;
+      overflow: hidden;
+    }
+
+    .person-header {
+      background: #EEF2FF;
+      padding: 12px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .person-info {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .person-avatar {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      color: #FFFFFF;
+      font-size: 14px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      text-transform: uppercase;
+    }
+
+    .person-name {
+      font-size: 15px;
+      font-weight: 700;
+      color: #111827;
+    }
+
+    .person-task-count {
+      font-size: 13px;
+      font-weight: 600;
+      color: #4F46E5;
+    }
+
+    .task-rows-list {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .task-row {
+      padding: 14px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      border-bottom: 1px solid #F3F4F6;
+    }
+
+    .task-row:last-child {
+      border-bottom: none;
+    }
+
+    .task-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex: 1;
+      min-width: 0;
+    }
+
+    .task-index {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: #F3F4F6;
+      color: #6B7280;
+      font-size: 12px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .task-text {
+      font-size: 14px;
+      color: #1F2937;
+      line-height: 1.45;
+      font-weight: 400;
+      word-break: break-word;
+    }
+
+    /* Deadline Pills */
+    .pill {
+      font-size: 12px;
+      padding: 4px 10px;
+      border-radius: 9999px;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    .pill-deadline {
+      background: #FEF3C7;
+      color: #92400E;
+      font-weight: 600;
+    }
+
+    .pill-neutral {
+      background: #F3F4F6;
+      color: #4B5563;
+      font-weight: 500;
+    }
+
+    /* Empty state */
+    .empty-state {
+      background: #FFFFFF;
+      border: 1px solid #E5E7EB;
+      border-radius: 14px;
+      padding: 64px 24px;
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .empty-icon {
+      width: 44px;
+      height: 44px;
+      color: #9CA3AF;
+      margin-bottom: 14px;
+    }
+
+    .empty-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: #374151;
+    }
+
+    .empty-subtitle {
+      font-size: 13px;
+      color: #6B7280;
+      margin-top: 4px;
+      max-width: 320px;
+    }
+
+    /* Toast notification */
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: #111827;
+      color: #FFFFFF;
+      padding: 10px 18px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 500;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      opacity: 0;
+      pointer-events: none;
+      transform: translateY(12px);
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+      z-index: 100;
+    }
+
+    .toast.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
   </style>
 </head>
 <body>
-  <header>
-    <div class="brand">
-      <div class="brand-icon">⚡</div>
-      <div>
-        <h1>Standup Task Extractor</h1>
-        <p>Upload or paste transcripts to get structured tasks & deadlines</p>
+
+  <!-- Top Bar (68px, white, bottom border) -->
+  <header class="topbar">
+    <div class="topbar-container">
+      <div class="brand">
+        <div class="brand-icon">
+          <!-- Lightning Bolt SVG -->
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M13 2L3 14H12L11 22L21 10H12L13 2Z" />
+          </svg>
+        </div>
+        <div class="brand-text">
+          <h1>Standup Task Extractor</h1>
+          <p>Structured tasks and deadlines from meeting transcripts</p>
+        </div>
       </div>
-    </div>
-    <div class="badges">
-      <span class="badge">Teams Ready</span>
-      <span class="badge">Groq LPU</span>
+      <button class="btn-outlined" id="copyBtn" onclick="copyForTeams()" disabled aria-label="Copy plain text summary for Microsoft Teams">
+        <!-- Clipboard SVG -->
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+          <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+        </svg>
+        <span>Copy for Teams</span>
+      </button>
     </div>
   </header>
 
+  <!-- Body (2 columns: 360px left, flexible right) -->
   <main>
-    <!-- Left Column: Input -->
-    <section class="card">
-      <div class="card-title">
-        <span>Meeting Transcript</span>
-        <div class="supported-formats">
-          <span class="fmt-pill">.TXT</span>
-          <span class="fmt-pill">.VTT</span>
-          <span class="fmt-pill">.DOCX</span>
+    <!-- Left Column: Input Card -->
+    <section class="left-col">
+      <div class="card input-card">
+        <h2>Meeting transcript</h2>
+
+        <!-- Dashed indigo-tinted drop zone -->
+        <div class="dropzone" id="dropzone" tabindex="0" role="button" aria-label="Drop a file or browse for transcript">
+          <p class="dropzone-title">Drop a file or <span>browse</span></p>
+          <p class="dropzone-formats">.txt · .vtt · .docx</p>
+          <input type="file" id="fileInput" accept=".txt,.vtt,.docx" style="display: none;">
+        </div>
+
+        <!-- File Loaded Banner -->
+        <div class="file-loaded-banner" id="fileBanner">
+          <span class="file-loaded-text" id="fileNameText">filename.txt · 0 KB</span>
+          <button class="file-clear-btn" onclick="clearFile()" aria-label="Remove loaded file">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+        </div>
+
+        <!-- Scrollable Textarea -->
+        <textarea id="transcriptText" placeholder="Engineering Team Daily Standup&#10;October 8, 2026, 9:30 AM · 24m 15s&#10;&#10;Arun 0:05&#10;Good morning everyone. Let's do a quick round of updates on current deliverables...&#10;&#10;Subiksha Mohanasundaram 0:22&#10;Good morning Arun. Yesterday I resolved the payload buffering issue..."></textarea>
+
+        <!-- Full-width Indigo Action Button -->
+        <button class="btn-primary" id="extractBtn" onclick="extractTasks()">
+          <span class="btn-spinner" id="btnSpinner"></span>
+          <span id="btnLabel">Extract tasks & deadlines</span>
+        </button>
+      </div>
+    </section>
+
+    <!-- Right Column: Results / Empty State -->
+    <section class="right-col">
+      <!-- Summary Stats Row (3 small cards) -->
+      <div class="stats-row" id="statsRow">
+        <div class="stat-card">
+          <div class="stat-number" id="statPeople">0</div>
+          <div class="stat-label">People</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-number" id="statTasks">0</div>
+          <div class="stat-label">Tasks</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-number" id="statDeadlines">0</div>
+          <div class="stat-label">With a deadline</div>
         </div>
       </div>
 
-      <div class="dropzone" id="dropzone">
-        <div class="icon">📁</div>
-        <p><strong>Click to browse</strong> or drag & drop</p>
-        <p style="font-size:0.75rem; color:#64748b; margin-top:0.2rem;">Accepts .txt, .vtt (Teams captions), and .docx (Word)</p>
-        <input type="file" id="fileInput" accept=".txt,.vtt,.docx" style="display:none">
-      </div>
-
-      <div class="file-status" id="fileStatus">
-        <span id="fileNameLabel">✅ Loaded file</span>
-        <button onclick="clearFile()" style="background:none; border:none; color:#cbd5e1; cursor:pointer; font-size:1rem;">✕</button>
-      </div>
-
-      <textarea id="transcriptInput" placeholder="Or paste meeting transcript here...&#10;&#10;Arun 0:05&#10;Good morning everyone. Subiksha, please test the bot deployment today afternoon.&#10;&#10;Subiksha 0:20&#10;Sure Arun, I will complete the testing by today afternoon."></textarea>
-
-      <button class="btn" id="analyzeBtn" onclick="analyzeTranscript()">
-        <span class="spinner" id="btnSpinner"></span>
-        <span id="btnText">Extract Tasks & Deadlines</span>
-      </button>
-    </section>
-
-    <!-- Right Column: Output -->
-    <section class="card">
-      <div class="card-title">
-        <span>Extracted Tasks</span>
-        <button class="copy-btn" id="copyBtn" onclick="copyResult()" style="display:none;">
-          📋 Copy for Teams
-        </button>
-      </div>
-
-      <div class="output-area" id="outputArea">
-        <div class="output-placeholder">
-          <div style="font-size:2.25rem; margin-bottom:0.5rem;">🎯</div>
-          <p>Upload a transcript file (.txt, .vtt, .docx) or paste meeting dialogue to extract everyone's tasks.</p>
+      <!-- Person Cards Container -->
+      <div class="person-cards-list" id="personCardsContainer">
+        <!-- Empty State Placeholder (Shown by default) -->
+        <div class="empty-state" id="emptyState">
+          <svg class="empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+            <polyline points="14 2 14 8 20 8"></polyline>
+            <line x1="16" y1="13" x2="8" y2="13"></line>
+            <line x1="16" y1="17" x2="8" y2="17"></line>
+            <polyline points="10 9 9 9 8 9"></polyline>
+          </svg>
+          <div class="empty-title">Upload a transcript and click Extract</div>
+          <div class="empty-subtitle">Extracted action items and deadlines per person will appear here.</div>
         </div>
       </div>
     </section>
   </main>
 
+  <!-- Copy Toast Notification -->
+  <div class="toast" id="toast" role="status" aria-live="polite">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#34D399" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+      <polyline points="20 6 9 17 4 12"></polyline>
+    </svg>
+    <span>Copied summary for Teams!</span>
+  </div>
+
   <script>
+    // Distinct vibrant avatar color palette
+    const AVATAR_COLORS = [
+      '#4F46E5', // Indigo
+      '#059669', // Emerald
+      '#C2410C', // Amber / Rust
+      '#7C3AED', // Purple
+      '#DB2777', // Pink
+      '#0284C7', // Sky Blue
+      '#0D9488', // Teal
+      '#D97706'  // Yellow Ochre
+    ];
+
     const dropzone = document.getElementById('dropzone');
     const fileInput = document.getElementById('fileInput');
-    const fileStatus = document.getElementById('fileStatus');
-    const fileNameLabel = document.getElementById('fileNameLabel');
-    const transcriptInput = document.getElementById('transcriptInput');
-    const outputArea = document.getElementById('outputArea');
-    const analyzeBtn = document.getElementById('analyzeBtn');
+    const fileBanner = document.getElementById('fileBanner');
+    const fileNameText = document.getElementById('fileNameText');
+    const transcriptText = document.getElementById('transcriptText');
+    const extractBtn = document.getElementById('extractBtn');
     const btnSpinner = document.getElementById('btnSpinner');
-    const btnText = document.getElementById('btnText');
+    const btnLabel = document.getElementById('btnLabel');
     const copyBtn = document.getElementById('copyBtn');
+    const personCardsContainer = document.getElementById('personCardsContainer');
+    const emptyState = document.getElementById('emptyState');
 
-    let currentMarkdown = '';
+    const statPeople = document.getElementById('statPeople');
+    const statTasks = document.getElementById('statTasks');
+    const statDeadlines = document.getElementById('statDeadlines');
+    const toast = document.getElementById('toast');
 
+    let currentPeopleData = [];
+
+    // Dropzone & File Input Handlers
     dropzone.addEventListener('click', () => fileInput.click());
+    dropzone.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        fileInput.click();
+      }
+    });
 
     fileInput.addEventListener('change', (e) => {
       const file = e.target.files[0];
-      if (file) handleFile(file);
+      if (file) handleIncomingFile(file);
     });
 
     dropzone.addEventListener('dragover', (e) => {
@@ -320,38 +708,39 @@
       dropzone.classList.add('dragover');
     });
 
-    dropzone.addEventListener('dragleave', () => dropzone.classList.remove('dragover'));
+    dropzone.addEventListener('dragleave', () => {
+      dropzone.classList.remove('dragover');
+    });
 
     dropzone.addEventListener('drop', (e) => {
       e.preventDefault();
       dropzone.classList.remove('dragover');
       if (e.dataTransfer.files.length) {
-        handleFile(e.dataTransfer.files[0]);
+        handleIncomingFile(e.dataTransfer.files[0]);
       }
     });
 
-    async function handleFile(file) {
+    async function handleIncomingFile(file) {
       const ext = file.name.split('.').pop().toLowerCase();
-      showFileStatus(`Loading ${file.name}...`);
+      const fileSizeKB = (file.size / 1024).toFixed(1);
+
+      fileNameText.textContent = `${file.name} · ${fileSizeKB} KB`;
+      fileBanner.style.display = 'flex';
 
       try {
         if (ext === 'docx') {
-          // Parse .docx with Mammoth.js
-          const arrayBuffer = await file.arrayBuffer();
-          const result = await mammoth.extractRawText({ arrayBuffer: arrayBuffer });
-          transcriptInput.value = result.value.trim();
-          showFileStatus(`✅ Loaded Word Doc: ${file.name} (${(file.size / 1024).toFixed(1)} KB)`);
+          // Client-side Word .docx parsing with Mammoth
+          const buffer = await file.arrayBuffer();
+          const result = await mammoth.extractRawText({ arrayBuffer: buffer });
+          transcriptText.value = result.value.trim();
         } else if (ext === 'vtt') {
-          // Parse .vtt (WebVTT Teams caption format)
-          const text = await file.text();
-          const parsedVtt = parseVTT(text);
-          transcriptInput.value = parsedVtt;
-          showFileStatus(`✅ Loaded VTT Transcript: ${file.name} (${(file.size / 1024).toFixed(1)} KB)`);
+          // Parse WebVTT Teams caption file
+          const content = await file.text();
+          transcriptText.value = parseVTT(content);
         } else {
-          // Standard .txt
-          const text = await file.text();
-          transcriptInput.value = text.trim();
-          showFileStatus(`✅ Loaded Text File: ${file.name} (${(file.size / 1024).toFixed(1)} KB)`);
+          // Plain text (.txt or other)
+          const content = await file.text();
+          transcriptText.value = content.trim();
         }
       } catch (err) {
         alert('Failed to read file: ' + err.message);
@@ -359,10 +748,16 @@
       }
     }
 
-    // WebVTT clean parser (strips WEBVTT headers, timestamps, and voice cues)
+    function clearFile() {
+      fileInput.value = '';
+      fileBanner.style.display = 'none';
+      fileNameText.textContent = '';
+    }
+
+    // Clean WebVTT parser: removes headers, timestamps (-->), and voice markup (<v Speaker>)
     function parseVTT(vttText) {
       const lines = vttText.split(/\r?\n/);
-      const cleanLines = [];
+      const clean = [];
 
       for (let i = 0; i < lines.length; i++) {
         let line = lines[i].trim();
@@ -370,44 +765,33 @@
           continue;
         }
 
-        // Teams voice tags: <v Speaker Name>Dialogue</v>
         const vMatch = line.match(/<v\s+([^>]+)>(.*?)<\/v>/i);
         if (vMatch) {
-          const speaker = vMatch[1];
-          const spoken = vMatch[2];
-          cleanLines.push(`${speaker}: ${spoken}`);
+          clean.push(`${vMatch[1]}: ${vMatch[2]}`);
           continue;
         }
 
-        // Generic tag stripper
         line = line.replace(/<[^>]+>/g, '').trim();
-        if (line) cleanLines.push(line);
+        if (line) clean.push(line);
       }
 
-      return cleanLines.join('\n');
+      return clean.join('\n');
     }
 
-    function showFileStatus(text) {
-      fileNameLabel.innerText = text;
-      fileStatus.style.display = 'flex';
-    }
-
-    function clearFile() {
-      fileInput.value = '';
-      fileStatus.style.display = 'none';
-    }
-
-    async function analyzeTranscript() {
-      const text = transcriptInput.value.trim();
+    // Main AI Extraction Call
+    async function extractTasks() {
+      const text = transcriptText.value.trim();
       if (!text) {
-        alert('Please paste a transcript or upload a file (.txt, .vtt, .docx) first!');
+        alert('Please drop a transcript file or paste meeting dialogue first.');
+        transcriptText.focus();
         return;
       }
 
-      analyzeBtn.disabled = true;
+      // Loading state
+      extractBtn.disabled = true;
       btnSpinner.style.display = 'inline-block';
-      btnText.innerText = 'Analyzing with AI...';
-      outputArea.innerHTML = '<div class="output-placeholder"><div class="spinner" style="display:inline-block; width:32px; height:32px; margin-bottom:1rem; border-width:3px;"></div><p style="color:#e2e8f0; font-weight:500;">Reading transcript & extracting all assigned tasks and deadlines...</p></div>';
+      btnLabel.textContent = 'Extracting…';
+      copyBtn.disabled = true;
 
       try {
         const response = await fetch('/api/analyze', {
@@ -416,28 +800,168 @@
           body: JSON.stringify({ transcript: text })
         });
 
-        const data = await response.json();
-
-        if (data.error) {
-          throw new Error(data.error);
+        if (!response.ok) {
+          const errData = await response.json().catch(() => ({}));
+          throw new Error(errData.error || `Server returned ${response.status}`);
         }
 
-        currentMarkdown = data.summary;
-        outputArea.innerText = currentMarkdown;
-        copyBtn.style.display = 'flex';
+        const result = await response.json();
+        const people = result.people || (result.data && result.data.people) || [];
+
+        renderResults(people);
       } catch (err) {
-        outputArea.innerHTML = `<div style="color:#f87171; padding:1.25rem;">❌ <strong>Error:</strong> ${err.message}</div>`;
+        alert('Extraction failed: ' + err.message);
       } finally {
-        analyzeBtn.disabled = false;
+        extractBtn.disabled = false;
         btnSpinner.style.display = 'none';
-        btnText.innerText = 'Extract Tasks & Deadlines';
+        btnLabel.textContent = 'Extract tasks & deadlines';
       }
     }
 
-    function copyResult() {
-      navigator.clipboard.writeText(currentMarkdown);
-      copyBtn.innerText = '✅ Copied to Clipboard!';
-      setTimeout(() => copyBtn.innerText = '📋 Copy for Teams', 2000);
+    // Render Person Cards and Stats
+    function renderResults(people) {
+      currentPeopleData = people;
+
+      if (!people || people.length === 0) {
+        statPeople.textContent = '0';
+        statTasks.textContent = '0';
+        statDeadlines.textContent = '0';
+        copyBtn.disabled = true;
+        personCardsContainer.innerHTML = `
+          <div class="empty-state">
+            <div class="empty-title">No participants or tasks detected</div>
+            <div class="empty-subtitle">Please verify that your transcript contains speaker dialogue.</div>
+          </div>
+        `;
+        return;
+      }
+
+      // Compute Stats
+      const totalPeople = people.length;
+      let totalTasks = 0;
+      let totalWithDeadline = 0;
+
+      people.forEach(p => {
+        const tasks = p.tasks || [];
+        totalTasks += tasks.length;
+        tasks.forEach(t => {
+          if (t.deadline && t.deadline.trim() !== '' && t.deadline.toLowerCase() !== 'null' && t.deadline.toLowerCase() !== 'no deadline') {
+            totalWithDeadline++;
+          }
+        });
+      });
+
+      statPeople.textContent = totalPeople;
+      statTasks.textContent = totalTasks;
+      statDeadlines.textContent = totalWithDeadline;
+      copyBtn.disabled = false;
+
+      // Build Person Cards HTML
+      let html = '';
+
+      people.forEach((person, personIndex) => {
+        const name = person.name || 'Unknown Person';
+        const tasks = person.tasks || [];
+        const taskCount = tasks.length;
+        const initial = name.trim().charAt(0).toUpperCase() || '?';
+        const avatarColor = AVATAR_COLORS[personIndex % AVATAR_COLORS.length];
+
+        html += `
+          <div class="person-card">
+            <div class="person-header">
+              <div class="person-info">
+                <div class="person-avatar" style="background-color: ${avatarColor};" aria-hidden="true">${escapeHTML(initial)}</div>
+                <div class="person-name">${escapeHTML(name)}</div>
+              </div>
+              <div class="person-task-count">${taskCount} task${taskCount === 1 ? '' : 's'}</div>
+            </div>
+            <div class="task-rows-list">
+        `;
+
+        if (tasks.length === 0) {
+          html += `
+            <div class="task-row">
+              <div class="task-left">
+                <div class="task-index">1</div>
+                <div class="task-text" style="color: #6B7280; font-style: italic;">No assigned tasks or updates.</div>
+              </div>
+              <div class="pill pill-neutral">No deadline</div>
+            </div>
+          `;
+        } else {
+          tasks.forEach((item, taskIndex) => {
+            const taskText = item.task || 'Task not specified';
+            const rawDl = item.deadline;
+            const hasDeadline = rawDl && rawDl.trim() !== '' && rawDl.toLowerCase() !== 'null' && rawDl.toLowerCase() !== 'no deadline' && rawDl.toLowerCase() !== 'not specified';
+            const deadlineLabel = hasDeadline ? escapeHTML(rawDl) : 'No deadline';
+            const pillClass = hasDeadline ? 'pill pill-deadline' : 'pill pill-neutral';
+
+            html += `
+              <div class="task-row">
+                <div class="task-left">
+                  <div class="task-index">${taskIndex + 1}</div>
+                  <div class="task-text">${escapeHTML(taskText)}</div>
+                </div>
+                <div class="${pillClass}">${deadlineLabel}</div>
+              </div>
+            `;
+          });
+        }
+
+        html += `
+            </div>
+          </div>
+        `;
+      });
+
+      personCardsContainer.innerHTML = html;
+    }
+
+    // Plain text generation grouped by person for Teams
+    function copyForTeams() {
+      if (!currentPeopleData || currentPeopleData.length === 0) return;
+
+      let plain = '';
+
+      currentPeopleData.forEach((p, idx) => {
+        plain += `${p.name}\n`;
+        const tasks = p.tasks || [];
+        if (tasks.length === 0) {
+          plain += ` 1. No assigned tasks or updates.\n`;
+        } else {
+          tasks.forEach((t, i) => {
+            const hasDl = t.deadline && t.deadline.trim() !== '' && t.deadline.toLowerCase() !== 'null' && t.deadline.toLowerCase() !== 'no deadline';
+            const dlText = hasDl ? `(${t.deadline})` : `(No deadline)`;
+            plain += ` ${i + 1}. ${t.task} ${dlText}\n`;
+          });
+        }
+        if (idx < currentPeopleData.length - 1) {
+          plain += '\n';
+        }
+      });
+
+      navigator.clipboard.writeText(plain.trim()).then(() => {
+        showToast();
+      }).catch(err => {
+        alert('Failed to copy: ' + err.message);
+      });
+    }
+
+    function showToast() {
+      toast.classList.add('show');
+      setTimeout(() => {
+        toast.classList.remove('show');
+      }, 2400);
+    }
+
+    function escapeHTML(str) {
+      if (!str) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
     }
   </script>
 </body>
