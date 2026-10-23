@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Standup Task Extractor</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <!-- Mammoth.js for client-side .docx parsing -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: #0f172a;
+      color: #e2e8f0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    header {
+      background: linear-gradient(135deg, #1e293b, #0f172a);
+      border-bottom: 1px solid #334155;
+      padding: 1.15rem 2rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+    .brand-icon {
+      width: 38px;
+      height: 38px;
+      background: linear-gradient(135deg, #6366f1, #8b5cf6);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.25rem;
+      box-shadow: 0 4px 12px rgba(99, 102, 241, 0.35);
+    }
+    .brand h1 {
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: #f8fafc;
+      letter-spacing: -0.01em;
+    }
+    .brand p {
+      font-size: 0.75rem;
+      color: #94a3b8;
+    }
+    .badges {
+      display: flex;
+      gap: 0.5rem;
+    }
+    .badge {
+      background: rgba(99, 102, 241, 0.15);
+      color: #a5b4fc;
+      border: 1px solid rgba(99, 102, 241, 0.3);
+      padding: 0.25rem 0.6rem;
+      border-radius: 20px;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+    main {
+      flex: 1;
+      max-width: 1300px;
+      width: 100%;
+      margin: 0 auto;
+      padding: 2rem 1.5rem;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.75rem;
+    }
+    @media (max-width: 900px) {
+      main { grid-template-columns: 1fr; }
+    }
+    .card {
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 14px;
+      padding: 1.5rem;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.25);
+    }
+    .card-title {
+      font-size: 1rem;
+      font-weight: 600;
+      color: #f1f5f9;
+      margin-bottom: 1rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .supported-formats {
+      display: flex;
+      gap: 0.4rem;
+    }
+    .fmt-pill {
+      background: #334155;
+      color: #cbd5e1;
+      font-size: 0.7rem;
+      font-weight: 600;
+      padding: 0.15rem 0.45rem;
+      border-radius: 4px;
+      text-transform: uppercase;
+    }
+    .dropzone {
+      border: 2px dashed #475569;
+      border-radius: 10px;
+      padding: 1.25rem 1rem;
+      text-align: center;
+      background: #0f172a;
+      cursor: pointer;
+      transition: all 0.2s;
+      margin-bottom: 1rem;
+    }
+    .dropzone:hover, .dropzone.dragover {
+      border-color: #6366f1;
+      background: rgba(99, 102, 241, 0.05);
+    }
+    .dropzone p {
+      font-size: 0.85rem;
+      color: #94a3b8;
+      margin-top: 0.25rem;
+    }
+    .dropzone .icon {
+      font-size: 1.75rem;
+    }
+    .file-status {
+      display: none;
+      background: rgba(34, 197, 94, 0.15);
+      border: 1px solid rgba(34, 197, 94, 0.3);
+      color: #86efac;
+      padding: 0.5rem 0.75rem;
+      border-radius: 8px;
+      font-size: 0.8rem;
+      margin-bottom: 0.75rem;
+      align-items: center;
+      justify-content: space-between;
+    }
+    textarea {
+      width: 100%;
+      flex: 1;
+      min-height: 250px;
+      background: #0f172a;
+      border: 1px solid #334155;
+      border-radius: 10px;
+      color: #e2e8f0;
+      font-family: inherit;
+      font-size: 0.875rem;
+      padding: 0.85rem;
+      resize: vertical;
+      line-height: 1.55;
+    }
+    textarea:focus {
+      outline: none;
+      border-color: #6366f1;
+    }
+    .btn {
+      background: linear-gradient(135deg, #6366f1, #8b5cf6);
+      color: white;
+      border: none;
+      padding: 0.85rem 1.25rem;
+      border-radius: 10px;
+      font-weight: 600;
+      font-size: 0.95rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      margin-top: 1rem;
+      transition: opacity 0.2s;
+      box-shadow: 0 4px 14px rgba(99, 102, 241, 0.35);
+    }
+    .btn:hover { opacity: 0.92; }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .output-area {
+      flex: 1;
+      background: #0f172a;
+      border: 1px solid #334155;
+      border-radius: 10px;
+      padding: 1.25rem;
+      font-size: 0.875rem;
+      line-height: 1.65;
+      overflow-y: auto;
+      max-height: 540px;
+      white-space: pre-wrap;
+    }
+    .output-placeholder {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      color: #64748b;
+      text-align: center;
+      padding: 2rem;
+    }
+    .copy-btn {
+      background: #334155;
+      color: #f1f5f9;
+      border: none;
+      padding: 0.4rem 0.85rem;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      transition: background 0.2s;
+    }
+    .copy-btn:hover { background: #475569; }
+    .spinner {
+      width: 18px;
+      height: 18px;
+      border: 2px solid rgba(255,255,255,0.3);
+      border-radius: 50%;
+      border-top-color: white;
+      animation: spin 0.8s linear infinite;
+      display: none;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand">
+      <div class="brand-icon">⚡</div>
+      <div>
+        <h1>Standup Task Extractor</h1>
+        <p>Upload or paste transcripts to get structured tasks & deadlines</p>
+      </div>
+    </div>
+    <div class="badges">
+      <span class="badge">Teams Ready</span>
+      <span class="badge">Groq LPU</span>
+    </div>
+  </header>
+
+  <main>
+    <!-- Left Column: Input -->
+    <section class="card">
+      <div class="card-title">
+        <span>Meeting Transcript</span>
+        <div class="supported-formats">
+          <span class="fmt-pill">.TXT</span>
+          <span class="fmt-pill">.VTT</span>
+          <span class="fmt-pill">.DOCX</span>
+        </div>
+      </div>
+
+      <div class="dropzone" id="dropzone">
+        <div class="icon">📁</div>
+        <p><strong>Click to browse</strong> or drag & drop</p>
+        <p style="font-size:0.75rem; color:#64748b; margin-top:0.2rem;">Accepts .txt, .vtt (Teams captions), and .docx (Word)</p>
+        <input type="file" id="fileInput" accept=".txt,.vtt,.docx" style="display:none">
+      </div>
+
+      <div class="file-status" id="fileStatus">
+        <span id="fileNameLabel">✅ Loaded file</span>
+        <button onclick="clearFile()" style="background:none; border:none; color:#cbd5e1; cursor:pointer; font-size:1rem;">✕</button>
+      </div>
+
+      <textarea id="transcriptInput" placeholder="Or paste meeting transcript here...&#10;&#10;Arun 0:05&#10;Good morning everyone. Subiksha, please test the bot deployment today afternoon.&#10;&#10;Subiksha 0:20&#10;Sure Arun, I will complete the testing by today afternoon."></textarea>
+
+      <button class="btn" id="analyzeBtn" onclick="analyzeTranscript()">
+        <span class="spinner" id="btnSpinner"></span>
+        <span id="btnText">Extract Tasks & Deadlines</span>
+      </button>
+    </section>
+
+    <!-- Right Column: Output -->
+    <section class="card">
+      <div class="card-title">
+        <span>Extracted Tasks</span>
+        <button class="copy-btn" id="copyBtn" onclick="copyResult()" style="display:none;">
+          📋 Copy for Teams
+        </button>
+      </div>
+
+      <div class="output-area" id="outputArea">
+        <div class="output-placeholder">
+          <div style="font-size:2.25rem; margin-bottom:0.5rem;">🎯</div>
+          <p>Upload a transcript file (.txt, .vtt, .docx) or paste meeting dialogue to extract everyone's tasks.</p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const dropzone = document.getElementById('dropzone');
+    const fileInput = document.getElementById('fileInput');
+    const fileStatus = document.getElementById('fileStatus');
+    const fileNameLabel = document.getElementById('fileNameLabel');
+    const transcriptInput = document.getElementById('transcriptInput');
+    const outputArea = document.getElementById('outputArea');
+    const analyzeBtn = document.getElementById('analyzeBtn');
+    const btnSpinner = document.getElementById('btnSpinner');
+    const btnText = document.getElementById('btnText');
+    const copyBtn = document.getElementById('copyBtn');
+
+    let currentMarkdown = '';
+
+    dropzone.addEventListener('click', () => fileInput.click());
+
+    fileInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (file) handleFile(file);
+    });
+
+    dropzone.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      dropzone.classList.add('dragover');
+    });
+
+    dropzone.addEventListener('dragleave', () => dropzone.classList.remove('dragover'));
+
+    dropzone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dropzone.classList.remove('dragover');
+      if (e.dataTransfer.files.length) {
+        handleFile(e.dataTransfer.files[0]);
+      }
+    });
+
+    async function handleFile(file) {
+      const ext = file.name.split('.').pop().toLowerCase();
+      showFileStatus(`Loading ${file.name}...`);
+
+      try {
+        if (ext === 'docx') {
+          // Parse .docx with Mammoth.js
+          const arrayBuffer = await file.arrayBuffer();
+          const result = await mammoth.extractRawText({ arrayBuffer: arrayBuffer });
+          transcriptInput.value = result.value.trim();
+          showFileStatus(`✅ Loaded Word Doc: ${file.name} (${(file.size / 1024).toFixed(1)} KB)`);
+        } else if (ext === 'vtt') {
+          // Parse .vtt (WebVTT Teams caption format)
+          const text = await file.text();
+          const parsedVtt = parseVTT(text);
+          transcriptInput.value = parsedVtt;
+          showFileStatus(`✅ Loaded VTT Transcript: ${file.name} (${(file.size / 1024).toFixed(1)} KB)`);
+        } else {
+          // Standard .txt
+          const text = await file.text();
+          transcriptInput.value = text.trim();
+          showFileStatus(`✅ Loaded Text File: ${file.name} (${(file.size / 1024).toFixed(1)} KB)`);
+        }
+      } catch (err) {
+        alert('Failed to read file: ' + err.message);
+        clearFile();
+      }
+    }
+
+    // WebVTT clean parser (strips WEBVTT headers, timestamps, and voice cues)
+    function parseVTT(vttText) {
+      const lines = vttText.split(/\r?\n/);
+      const cleanLines = [];
+
+      for (let i = 0; i < lines.length; i++) {
+        let line = lines[i].trim();
+        if (!line || line.startsWith('WEBVTT') || line.startsWith('NOTE') || line.includes('-->') || /^\d+$/.test(line)) {
+          continue;
+        }
+
+        // Teams voice tags: <v Speaker Name>Dialogue</v>
+        const vMatch = line.match(/<v\s+([^>]+)>(.*?)<\/v>/i);
+        if (vMatch) {
+          const speaker = vMatch[1];
+          const spoken = vMatch[2];
+          cleanLines.push(`${speaker}: ${spoken}`);
+          continue;
+        }
+
+        // Generic tag stripper
+        line = line.replace(/<[^>]+>/g, '').trim();
+        if (line) cleanLines.push(line);
+      }
+
+      return cleanLines.join('\n');
+    }
+
+    function showFileStatus(text) {
+      fileNameLabel.innerText = text;
+      fileStatus.style.display = 'flex';
+    }
+
+    function clearFile() {
+      fileInput.value = '';
+      fileStatus.style.display = 'none';
+    }
+
+    async function analyzeTranscript() {
+      const text = transcriptInput.value.trim();
+      if (!text) {
+        alert('Please paste a transcript or upload a file (.txt, .vtt, .docx) first!');
+        return;
+      }
+
+      analyzeBtn.disabled = true;
+      btnSpinner.style.display = 'inline-block';
+      btnText.innerText = 'Analyzing with AI...';
+      outputArea.innerHTML = '<div class="output-placeholder"><div class="spinner" style="display:inline-block; width:32px; height:32px; margin-bottom:1rem; border-width:3px;"></div><p style="color:#e2e8f0; font-weight:500;">Reading transcript & extracting all assigned tasks and deadlines...</p></div>';
+
+      try {
+        const response = await fetch('/api/analyze', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ transcript: text })
+        });
+
+        const data = await response.json();
+
+        if (data.error) {
+          throw new Error(data.error);
+        }
+
+        currentMarkdown = data.summary;
+        outputArea.innerText = currentMarkdown;
+        copyBtn.style.display = 'flex';
+      } catch (err) {
+        outputArea.innerHTML = `<div style="color:#f87171; padding:1.25rem;">❌ <strong>Error:</strong> ${err.message}</div>`;
+      } finally {
+        analyzeBtn.disabled = false;
+        btnSpinner.style.display = 'none';
+        btnText.innerText = 'Extract Tasks & Deadlines';
+      }
+    }
+
+    function copyResult() {
+      navigator.clipboard.writeText(currentMarkdown);
+      copyBtn.innerText = '✅ Copied to Clipboard!';
+      setTimeout(() => copyBtn.innerText = '📋 Copy for Teams', 2000);
+    }
+  </script>
+</body>
+</html>

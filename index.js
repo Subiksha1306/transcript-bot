@@ -42,9 +42,38 @@ if (!process.env.GROQ_API_KEY) {
     process.exit(1);
 }
 
-// Health check endpoint
+// Serve UI static files
+const path = require('path');
+app.use(express.static(path.join(__dirname, 'public')));
+
+// Web UI Homepage
 app.get('/', (req, res) => {
-    res.send('Standup Meeting Bot is online! Ready for Webhooks (/webhook) and Teams Bot (/api/messages).');
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
+// Web UI / API Analyze Endpoint
+app.post('/api/analyze', async (req, res) => {
+    try {
+        let transcript = '';
+        if (req.body && typeof req.body === 'object') {
+            transcript = req.body.transcript || '';
+        } else if (typeof req.body === 'string') {
+            transcript = req.body;
+        }
+
+        if (!transcript || transcript.trim() === '') {
+            return res.status(400).json({ error: 'Please provide or upload a meeting transcript.' });
+        }
+
+        console.log(`\n[Web UI] Analyzing transcript (${transcript.length} characters)...`);
+        const standupData = await aiService.processTranscript(transcript);
+        const summary = aiService.formatMarkdownSummary(standupData);
+
+        res.json({ summary, data: standupData });
+    } catch (err) {
+        console.error('[Web UI] Error:', err);
+        res.status(500).json({ error: err.message || 'Failed to process transcript.' });
+    }
 });
 
 // 1. Power Automate Webhook Endpoint

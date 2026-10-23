@@ -1,7 +1,7 @@
 {
     "$schema": "https://developer.microsoft.com/en-us/json-schemas/teams/v1.16/MicrosoftTeams.schema.json",
     "manifestVersion": "1.16",
-    "version": "1.0.0",
+    "version": "1.0.2",
     "id": "de10a9b3-43ef-49fc-ade2-35be731535f3",
     "packageName": "com.transcriptbot.teamsapp",
     "developer": {
@@ -29,10 +29,25 @@
             "scopes": [
                 "personal",
                 "team",
-                "groupchat"
+                "groupChat"
             ],
             "supportsFiles": true,
-            "isNotificationOnly": false
+            "isNotificationOnly": false,
+            "commandLists": [
+                {
+                    "scopes": [
+                        "personal",
+                        "team",
+                        "groupChat"
+                    ],
+                    "commands": [
+                        {
+                            "title": "analyze",
+                            "description": "Extract tasks and deadlines from meeting transcript"
+                        }
+                    ]
+                }
+            ]
         }
     ],
     "permissions": [
