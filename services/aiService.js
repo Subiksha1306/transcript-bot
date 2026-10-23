@@ -158,15 +158,16 @@ function formatMarkdownSummary(standupData) {
 
     // Generate Output
     for (const [name, tasks] of Object.entries(personTasks)) {
-        markdown += `**Person:** ${name}\n\n`;
-        markdown += `&nbsp;&nbsp;&nbsp;&nbsp;**Tasks:**\n\n`;
+        markdown += `**Person:** ${name}\n`;
+        markdown += `    **Tasks:**\n`;
 
         if (tasks.length === 0) {
-            markdown += `&nbsp;&nbsp;&nbsp;&nbsp;1. No assigned tasks or updates.\n\n`;
+            markdown += `    1. No assigned tasks or updates.\n\n`;
         } else {
             tasks.forEach((task, index) => {
-                markdown += `&nbsp;&nbsp;&nbsp;&nbsp;${index + 1}. ${task.desc} (Deadline: ${task.deadline})\n\n`;
+                markdown += `    ${index + 1}. ${task.desc} (Deadline: ${task.deadline})\n`;
             });
+            markdown += `\n`;
         }
     }
 
